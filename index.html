@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz de Ética & Moral</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+
+<!-- ======================================================
+     FIREBASE SDK
+     ====================================================== -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  // ============================================================
+  // 🔧 SUBSTITUA AQUI COM SUAS CONFIGURAÇÕES DO FIREBASE
+  // (Você vai obter esses valores no Console do Firebase)
+  // ============================================================
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCi8Enz5GUAuLpARhjbtNCYwaV9IM6Y8bI",
+    authDomain:        "quiz-etica-professor.firebaseapp.com",
+    databaseURL:       "https://quiz-etica-professor-default-rtdb.firebaseio.com",
+    projectId:         "quiz-etica-professor",
+    storageBucket:     "quiz-etica-professor.firebasestorage.app",
+    messagingSenderId: "868242095511",
+    appId:             "1:868242095511:web:286b3cff277033526598d2"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  // Expor funções ao escopo global para os handlers onclick
+  window._fbSaveScore = async function(entry) {
+    try {
+      const scoresRef = ref(db, 'quiz_etica/scores');
+      const snap = await get(scoresRef);
+      let all = snap.exists() ? Object.values(snap.val()) : [];
+
+      // Guarda apenas a melhor pontuação por nome
+      const idx = all.findIndex(e => e.name === entry.name);
+      if (idx >= 0) {
+        if (entry.score > all[idx].score) all[idx] = entry;
+      } else {
+        all.push(entry);
+      }
+
+      // Reescreve como objeto indexado
+      const obj = {};
+      all.forEach((e, i) => { obj[i] = e; });
+      await set(scoresRef, obj);
+      return true;
+    } catch(e) { console.error('Firebase save error:', e); return false; }
+  };
+
+  window._fbGetScores = async function() {
+    try {
+      const snap = await get(ref(db, 'quiz_etica/scores'));
+      return snap.exists() ? Object.values(snap.val()) : [];
+    } catch(e) { console.error('Firebase get error:', e); return []; }
+  };
+
+  window._fbClearScores = async function() {
+    try {
+      await set(ref(db, 'quiz_etica/scores'), null);
+      return true;
+    } catch(e) { return false; }
+  };
+
+  window._firebaseReady = true;
+  console.log('✅ Firebase conectado com sucesso!');
+</script>
+
+<style>
+:root {
+  --bg: #0f0c29;
+  --card: #1a1740;
+  --card2: #231f52;
+  --accent: #f7c948;
+  --accent2: #ff6b9d;
+  --accent3: #4ecdc4;
+  --text: #ffffff;
+  --text-dim: #a0a0c0;
+  --green: #4ade80;
+  --red: #f87171;
+  --radius: 16px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* STARS */
+.stars { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+.star {
+  position:absolute; border-radius:50%; background:white;
+  animation: twinkle var(--d,3s) ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%,100%{opacity:.2;transform:scale(1);}
+  50%{opacity:.9;transform:scale(1.3);}
+}
+
+/* SCREENS */
+.screen {
+  display:none; position:relative; z-index:10;
+  min-height:100vh; padding:20px;
+  flex-direction:column; align-items:center; justify-content:center;
+  animation: fadeUp .5s ease;
+}
+.screen.active { display:flex; }
+@keyframes fadeUp {
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* CARDS */
+.card {
+  background:var(--card); border-radius:var(--radius);
+  padding:28px 32px; border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 8px 40px rgba(0,0,0,0.4);
+  width:100%; max-width:520px;
+}
+.card-wide { max-width:720px; }
+.card-xl { max-width:900px; }
+
+/* TYPOGRAPHY */
+.game-title {
+  font-family:'Playfair Display',serif;
+  font-size:52px; font-weight:900;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  text-align:center; line-height:1.1; margin-bottom:8px;
+}
+.game-subtitle { font-size:18px; color:var(--text-dim); text-align:center; margin-bottom:32px; }
+h2 { font-size:26px; font-weight:800; margin-bottom:16px; }
+h3 { font-size:18px; font-weight:700; margin-bottom:12px; color:var(--accent); }
+
+/* INPUTS */
+.input-group { margin-bottom:18px; }
+.input-group label { display:block; font-size:13px; font-weight:700; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; }
+input[type=text], input[type=password] {
+  width:100%; padding:14px 18px;
+  background:var(--card2); border:2px solid rgba(255,255,255,0.1);
+  border-radius:12px; color:white; font-family:'Nunito',sans-serif;
+  font-size:16px; font-weight:600; outline:none; transition:border-color .2s;
+}
+input[type=text]:focus, input[type=password]:focus { border-color:var(--accent); }
+
+/* BUTTONS */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:14px 28px; border-radius:50px; border:none;
+  font-family:'Nunito',sans-serif; font-size:16px; font-weight:800;
+  cursor:pointer; transition:all .2s; text-decoration:none;
+}
+.btn-primary { background:linear-gradient(135deg,var(--accent),#f0a020); color:#1a1200; width:100%; }
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(247,201,72,.4); }
+.btn-secondary { background:rgba(255,255,255,0.08); color:white; border:2px solid rgba(255,255,255,0.15); }
+.btn-secondary:hover { background:rgba(255,255,255,0.14); }
+.btn-accent2 { background:linear-gradient(135deg,var(--accent2),#c0308d); color:white; }
+.btn-green { background:linear-gradient(135deg,var(--green),#22c55e); color:#001a00; }
+.btn-sm { padding:8px 18px; font-size:13px; }
+.btn-row { display:flex; gap:12px; margin-top:20px; flex-wrap:wrap; }
+
+/* AVATAR */
+.avatar-preview { display:flex; flex-direction:column; align-items:center; margin-bottom:24px; }
+#avatar-svg { width:160px; height:200px; filter:drop-shadow(0 8px 20px rgba(0,0,0,.5)); }
+.option-group { margin-bottom:20px; }
+.option-label { font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); margin-bottom:10px; }
+.option-row { display:flex; gap:10px; flex-wrap:wrap; }
+.opt-btn {
+  padding:8px 16px; border-radius:30px; border:2px solid rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.05); color:white; font-family:'Nunito',sans-serif;
+  font-size:13px; font-weight:700; cursor:pointer; transition:all .2s;
+}
+.opt-btn:hover { border-color:var(--accent); }
+.opt-btn.selected { border-color:var(--accent); background:rgba(247,201,72,.15); color:var(--accent); }
+.color-dot {
+  width:36px; height:36px; border-radius:50%; border:3px solid rgba(255,255,255,.2);
+  cursor:pointer; transition:all .2s; flex-shrink:0;
+}
+.color-dot.selected { border-color:var(--accent); transform:scale(1.15); box-shadow:0 0 12px rgba(247,201,72,.5); }
+
+/* QUIZ */
+.quiz-header { display:flex; align-items:center; justify-content:space-between; width:100%; max-width:720px; margin-bottom:20px; }
+.quiz-meta { display:flex; align-items:center; gap:16px; }
+.score-badge { background:var(--card2); border-radius:40px; padding:8px 18px; font-size:15px; font-weight:800; border:1px solid rgba(255,255,255,.1); }
+.score-badge span { color:var(--accent); }
+
+/* TIMER */
+.timer-wrap { position:relative; width:64px; height:64px; }
+.timer-svg { width:64px; height:64px; transform:rotate(-90deg); }
+.timer-track { fill:none; stroke:rgba(255,255,255,.1); stroke-width:5; }
+.timer-fill { fill:none; stroke-width:5; stroke-linecap:round; transition:stroke-dashoffset .9s linear, stroke .5s; }
+.timer-num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:900; color:var(--accent); }
+.timer-num.danger { color:var(--red); }
+
+/* PROGRESS */
+.progress-bar-wrap { width:100%; max-width:720px; height:6px; background:rgba(255,255,255,.08); border-radius:3px; margin-bottom:20px; overflow:hidden; }
+.progress-bar-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--accent3),var(--accent)); transition:width .4s ease; }
+
+/* QUESTION */
+.question-num { font-size:13px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim); margin-bottom:10px; }
+.question-tag { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; margin-bottom:14px; background:rgba(78,205,196,.15); color:var(--accent3); border:1px solid rgba(78,205,196,.3); }
+.question-text { font-size:20px; font-weight:800; line-height:1.4; margin-bottom:24px; }
+.options-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.option-card {
+  padding:16px 20px; border-radius:14px; cursor:pointer;
+  border:2px solid rgba(255,255,255,.1); background:var(--card2);
+  font-size:15px; font-weight:700; transition:all .2s; text-align:left;
+  display:flex; align-items:center; gap:12px;
+}
+.option-card:hover:not(.disabled) { border-color:var(--accent); background:rgba(247,201,72,.08); transform:translateY(-2px); }
+.option-card.correct { border-color:var(--green); background:rgba(74,222,128,.12); }
+.option-card.wrong { border-color:var(--red); background:rgba(248,113,113,.12); }
+.option-card.disabled { cursor:default; }
+.option-letter { width:32px; height:32px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; background:rgba(255,255,255,.1); }
+.option-card.correct .option-letter { background:var(--green); color:#001a00; }
+.option-card.wrong .option-letter { background:var(--red); color:white; }
+.feedback-msg { margin-top:16px; padding:12px 18px; border-radius:12px; font-size:14px; font-weight:700; display:none; }
+.feedback-msg.correct-fb { background:rgba(74,222,128,.12); color:var(--green); border:1px solid rgba(74,222,128,.3); display:block; }
+.feedback-msg.wrong-fb { background:rgba(248,113,113,.12); color:var(--red); border:1px solid rgba(248,113,113,.3); display:block; }
+
+/* RESULTS */
+.result-avatar { width:100px; height:125px; margin:0 auto 16px; display:block; filter:drop-shadow(0 6px 16px rgba(0,0,0,.5)); }
+.result-score-big { font-family:'Playfair Display',serif; font-size:72px; font-weight:900; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-align:center; line-height:1; }
+.result-label { text-align:center; font-size:14px; color:var(--text-dim); margin-bottom:20px; }
+.result-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:24px; }
+.stat-card { background:var(--card2); border-radius:12px; padding:14px 10px; text-align:center; border:1px solid rgba(255,255,255,.06); }
+.stat-val { font-size:24px; font-weight:900; color:var(--accent); }
+.stat-lbl { font-size:11px; color:var(--text-dim); font-weight:700; letter-spacing:.5px; text-transform:uppercase; }
+
+/* RANKING */
+.rank-row { display:flex; align-items:center; gap:14px; padding:14px 18px; border-radius:14px; background:var(--card2); margin-bottom:10px; border:1px solid rgba(255,255,255,.06); transition:transform .15s; }
+.rank-row:hover { transform:translateX(4px); }
+.rank-pos { width:36px; height:36px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:900; background:rgba(255,255,255,.1); }
+.rank-pos.gold { background:linear-gradient(135deg,#f7c948,#e0a020); color:#1a0a00; }
+.rank-pos.silver { background:linear-gradient(135deg,#c0c0c0,#909090); color:#111; }
+.rank-pos.bronze { background:linear-gradient(135deg,#cd7f32,#9a5a1e); color:white; }
+.rank-name { font-size:16px; font-weight:800; flex:1; }
+.rank-score { font-size:20px; font-weight:900; color:var(--accent); }
+.rank-details { font-size:12px; color:var(--text-dim); }
+.rank-avatar-mini { width:44px; height:55px; flex-shrink:0; }
+.my-row { border-color:var(--accent)!important; background:rgba(247,201,72,.06)!important; }
+
+/* TEACHER TABLE */
+.teacher-table { width:100%; border-collapse:collapse; font-size:14px; }
+.teacher-table th { text-align:left; padding:10px 14px; background:rgba(255,255,255,.05); color:var(--text-dim); font-size:12px; letter-spacing:1px; text-transform:uppercase; }
+.teacher-table td { padding:10px 14px; border-top:1px solid rgba(255,255,255,.05); }
+.teacher-table tr:hover td { background:rgba(255,255,255,.03); }
+
+/* CONTROLS */
+.music-toggle { position:fixed; top:16px; right:16px; z-index:100; background:rgba(255,255,255,.1); border:2px solid rgba(255,255,255,.2); color:white; border-radius:50%; width:44px; height:44px; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; backdrop-filter:blur(8px); }
+.music-toggle:hover { background:rgba(255,255,255,.18); }
+.teacher-btn { position:fixed; top:16px; left:16px; z-index:100; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); color:var(--text-dim); border-radius:30px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer; letter-spacing:.5px; backdrop-filter:blur(8px); transition:all .2s; }
+.teacher-btn:hover { color:white; background:rgba(255,255,255,.14); }
+
+/* STATUS FIREBASE */
+.firebase-status { position:fixed; bottom:16px; right:16px; z-index:100; font-size:11px; font-weight:700; padding:6px 12px; border-radius:20px; backdrop-filter:blur(8px); }
+.firebase-status.ok { background:rgba(74,222,128,.15); color:var(--green); border:1px solid rgba(74,222,128,.3); }
+.firebase-status.err { background:rgba(248,113,113,.15); color:var(--red); border:1px solid rgba(248,113,113,.3); }
+
+/* CONFETTI */
+.confetti-piece { position:fixed; top:-10px; width:10px; height:10px; border-radius:2px; animation:confFall linear forwards; pointer-events:none; z-index:999; }
+@keyframes confFall { to{transform:translateY(110vh) rotate(720deg);opacity:0;} }
+
+@keyframes popIn { 0%{transform:scale(0) rotate(-20deg);} 80%{transform:scale(1.15) rotate(5deg);} 100%{transform:scale(1) rotate(0);} }
+.medal-pop { animation:popIn .5s ease forwards; display:inline-block; font-size:56px; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+.pulse { animation:pulse 1s ease infinite; }
+.divider { height:1px; background:rgba(255,255,255,.08); margin:20px 0; }
+.quiz-avatar { width:40px; height:50px; }
+
+@media(max-width:600px){
+  .game-title{font-size:36px;}
+  .options-grid{grid-template-columns:1fr;}
+  .result-stats{grid-template-columns:1fr 1fr;}
+  .card{padding:20px;}
+  .quiz-header{flex-wrap:wrap; gap:10px;}
+}
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+<button class="music-toggle" id="musicBtn" onclick="toggleMusic()" title="Música">🎵</button>
+<button class="teacher-btn" onclick="showTeacherLogin()">👨‍🏫 Professor</button>
+<div class="firebase-status" id="fb-status">⏳ Conectando...</div>
+
+<!-- ===================== SCREEN 1: WELCOME ===================== -->
+<div class="screen active" id="screen-welcome">
+  <div style="text-align:center;margin-bottom:32px;">
+    <div style="font-size:60px;margin-bottom:12px;">🧠</div>
+    <div class="game-title">Quiz de Ética<br>& Moral</div>
+    <div class="game-subtitle">Teste seus conhecimentos e dispute o ranking!</div>
+  </div>
+  <div class="card">
+    <h2>Bem-vindo(a)!</h2>
+    <p style="color:var(--text-dim);font-size:14px;margin-bottom:20px;">15 perguntas · 30 segundos cada · Pontos por acerto e velocidade</p>
+    <div class="input-group">
+      <label>Seu nome</label>
+      <input type="text" id="playerName" placeholder="Digite seu nome aqui..." maxlength="20" onkeydown="if(event.key==='Enter')goToAvatar()">
+    </div>
+    <button class="btn btn-primary" onclick="goToAvatar()">Criar meu avatar →</button>
+    <div style="margin-top:16px;text-align:center;">
+      <button class="btn btn-secondary btn-sm" onclick="showRanking()">🏆 Ver Ranking</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 2: AVATAR ===================== -->
+<div class="screen" id="screen-avatar">
+  <div class="card" style="max-width:660px;">
+    <h2 style="text-align:center;">🎨 Crie seu Avatar</h2>
+    <p style="color:var(--text-dim);font-size:13px;text-align:center;margin-bottom:24px;">Personalize seu personagem antes de começar!</p>
+    <div class="avatar-preview">
+      <svg id="avatar-svg" viewBox="0 0 160 200" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div class="option-group">
+          <div class="option-label">Gênero</div>
+          <div class="option-row">
+            <button class="opt-btn selected" data-group="gender" data-val="male" onclick="setOpt(this,'gender')">👦 Masculino</button>
+            <button class="opt-btn" data-group="gender" data-val="female" onclick="setOpt(this,'gender')">👧 Feminino</button>
+          </div>
+        </div>
+        <div class="option-group">
+          <div class="option-label">Tom de pele</div>
+          <div class="option-row">
+            <div class="color-dot selected" data-group="skin" data-val="#FDDBB4" style="background:#FDDBB4;" onclick="setColor(this,'skin')"></div>
+            <div class="color-dot" data-group="skin" data-val="#C68642" style="background:#C68642;" onclick="setColor(this,'skin')"></div>
+            <div class="color-dot" data-group="skin" data-val="#5C3317" style="background:#5C3317;" onclick="setColor(this,'skin')"></div>
+          </div>
+        </div>
+        <div class="option-group">
+          <div class="option-label">Cabelo</div>
+          <div class="option-row">
+            <button class="opt-btn selected" data-group="hair" data-val="short" onclick="setOpt(this,'hair')">✂️ Curto</button>
+            <button class="opt-btn" data-group="hair" data-val="long" onclick="setOpt(this,'hair')">💇 Longo</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="option-group">
+          <div class="option-label">Cor do cabelo</div>
+          <div class="option-row">
+            <div class="color-dot selected" data-group="hairColor" data-val="#2C1810" style="background:#2C1810;" onclick="setColor(this,'hairColor')"></div>
+            <div class="color-dot" data-group="hairColor" data-val="#8B6914" style="background:#8B6914;" onclick="setColor(this,'hairColor')"></div>
+            <div class="color-dot" data-group="hairColor" data-val="#1a1a1a" style="background:#1a1a1a;" onclick="setColor(this,'hairColor')"></div>
+            <div class="color-dot" data-group="hairColor" data-val="#e8c97a" style="background:#e8c97a;" onclick="setColor(this,'hairColor')"></div>
+          </div>
+        </div>
+        <div class="option-group">
+          <div class="option-label">Óculos</div>
+          <div class="option-row">
+            <button class="opt-btn" data-group="glasses" data-val="yes" onclick="setOpt(this,'glasses')">👓 Com óculos</button>
+            <button class="opt-btn selected" data-group="glasses" data-val="no" onclick="setOpt(this,'glasses')">🚫 Sem óculos</button>
+          </div>
+        </div>
+        <div class="option-group">
+          <div class="option-label">Cor da camisa</div>
+          <div class="option-row">
+            <div class="color-dot selected" data-group="shirt" data-val="#4a9e5c" style="background:#4a9e5c;" onclick="setColor(this,'shirt')"></div>
+            <div class="color-dot" data-group="shirt" data-val="#3a8f8f" style="background:#3a8f8f;" onclick="setColor(this,'shirt')"></div>
+            <div class="color-dot" data-group="shirt" data-val="#6b5bbf" style="background:#6b5bbf;" onclick="setColor(this,'shirt')"></div>
+            <div class="color-dot" data-group="shirt" data-val="#d4920a" style="background:#d4920a;" onclick="setColor(this,'shirt')"></div>
+            <div class="color-dot" data-group="shirt" data-val="#d94c1a" style="background:#d94c1a;" onclick="setColor(this,'shirt')"></div>
+            <div class="color-dot" data-group="shirt" data-val="#ff6b9d" style="background:#ff6b9d;" onclick="setColor(this,'shirt')"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" style="flex:1" onclick="showScreen('screen-welcome')">← Voltar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="startQuiz()">🚀 Começar Quiz!</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 3: QUIZ ===================== -->
+<div class="screen" id="screen-quiz" style="padding-top:30px;">
+  <div class="quiz-header">
+    <div class="quiz-meta">
+      <svg class="quiz-avatar" id="quiz-avatar-mini" viewBox="0 0 160 200" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div>
+        <div style="font-size:15px;font-weight:800;" id="quiz-player-name">Jogador</div>
+        <div class="score-badge">⭐ <span id="current-score">0</span> pts</div>
+      </div>
+    </div>
+    <div class="timer-wrap">
+      <svg class="timer-svg" viewBox="0 0 64 64">
+        <circle class="timer-track" cx="32" cy="32" r="27"/>
+        <circle class="timer-fill" id="timer-circle" cx="32" cy="32" r="27" stroke="#f7c948" stroke-dasharray="169.6" stroke-dashoffset="0"/>
+      </svg>
+      <div class="timer-num" id="timer-num">30</div>
+    </div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+  <div class="card card-wide">
+    <div class="question-num" id="q-num">PERGUNTA 1 DE 15</div>
+    <div class="question-tag" id="q-tag">Ética</div>
+    <div class="question-text" id="q-text">Carregando...</div>
+    <div class="options-grid" id="options-grid"></div>
+    <div class="feedback-msg" id="feedback-msg"></div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 4: RESULTS ===================== -->
+<div class="screen" id="screen-result">
+  <div class="card" style="text-align:center;max-width:480px;">
+    <div id="result-medal" class="medal-pop">🎉</div>
+    <div style="font-size:18px;font-weight:800;color:var(--text-dim);margin-bottom:6px;" id="result-name">Parabéns!</div>
+    <div class="result-score-big" id="result-score">0</div>
+    <div class="result-label">pontos</div>
+    <svg id="result-avatar" class="result-avatar" viewBox="0 0 160 200" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="result-stats">
+      <div class="stat-card"><div class="stat-val" id="r-correct">0</div><div class="stat-lbl">Acertos</div></div>
+      <div class="stat-card"><div class="stat-val" id="r-wrong">0</div><div class="stat-lbl">Erros</div></div>
+      <div class="stat-card"><div class="stat-val" id="r-speed">0</div><div class="stat-lbl">Bônus velocidade</div></div>
+    </div>
+    <div id="result-rank-preview" style="margin-bottom:20px;padding:14px;background:var(--card2);border-radius:12px;font-size:14px;color:var(--text-dim);"></div>
+    <button class="btn btn-primary" onclick="showRanking()">🏆 Ver Ranking</button>
+    <div style="margin-top:12px;">
+      <button class="btn btn-secondary btn-sm" onclick="resetGame()">🔄 Jogar Novamente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 5: RANKING ===================== -->
+<div class="screen" id="screen-ranking">
+  <div class="card card-xl" style="max-width:700px;width:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="margin:0;">🏆 Ranking Global</h2>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:4px;">Top pontuações de todos os participantes</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="loadRanking()">🔄 Atualizar</button>
+        <button class="btn btn-secondary btn-sm" onclick="resetGame()">🏠 Início</button>
+      </div>
+    </div>
+    <div id="ranking-list"><div style="text-align:center;padding:40px;color:var(--text-dim);" class="pulse">Carregando ranking...</div></div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 6: TEACHER ===================== -->
+<div class="screen" id="screen-teacher">
+  <div class="card card-xl" style="max-width:800px;width:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="margin:0;">👨‍🏫 Painel do Professor</h2>
+        <div style="font-size:13px;color:var(--text-dim);">Visualize todos os resultados dos alunos em tempo real</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-green btn-sm" onclick="loadTeacherPanel()">🔄 Atualizar</button>
+        <button class="btn btn-accent2 btn-sm" onclick="clearAllScores()">🗑️ Limpar dados</button>
+        <button class="btn btn-secondary btn-sm" onclick="showScreen('screen-welcome')">← Sair</button>
+      </div>
+    </div>
+    <div id="teacher-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;"></div>
+    <div style="overflow-x:auto;">
+      <table class="teacher-table">
+        <thead><tr><th>#</th><th>Aluno</th><th>Pontuação</th><th>Acertos</th><th>Erros</th><th>Bônus</th><th>Data/Hora</th></tr></thead>
+        <tbody id="teacher-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- TEACHER LOGIN MODAL -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div class="card" style="max-width:380px;width:90%;">
+    <h2>🔐 Acesso Professor</h2>
+    <p style="color:var(--text-dim);font-size:14px;margin-bottom:20px;">Senha padrão: <code style="background:var(--card2);padding:2px 8px;border-radius:6px;color:var(--accent);">professor123</code></p>
+    <div class="input-group">
+      <label>Senha</label>
+      <input type="password" id="teacher-pass" placeholder="Digite a senha..." onkeydown="if(event.key==='Enter')checkTeacherPass()">
+    </div>
+    <div style="color:var(--red);font-size:13px;margin-bottom:12px;display:none;" id="pass-error">❌ Senha incorreta!</div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="checkTeacherPass()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// QUESTIONS
+// ============================================================
+const questions = [
+  { q:"O que é 'eudaimonia' segundo Aristóteles?", opts:["Riqueza material","Felicidade como florescimento humano pleno","Prazer imediato","Salvação da alma"], correct:1, tag:"Ética da Virtude" },
+  { q:"Para Aristóteles, uma pessoa virtuosa é aquela que:", opts:["Segue regras por medo da punição","Age bem por hábito e caráter desenvolvido","Calcula as consequências de cada ato","Obedece aos mandamentos divinos"], correct:1, tag:"Ética da Virtude" },
+  { q:"Qual a diferença fundamental entre Moral e Ética?", opts:["São sinônimos absolutos","Moral são os costumes práticos; Ética é a reflexão filosófica sobre eles","Ética trata de religião; Moral trata de leis","Moral é individual; Ética é coletiva"], correct:1, tag:"Conceitos Gerais" },
+  { q:"O Imperativo Categórico de Kant diz que devemos:", opts:["Agir buscando a maior felicidade possível","Agir segundo regras que possamos querer universais para todos","Agir conforme os mandamentos de Deus","Agir preservando o meio ambiente"], correct:1, tag:"Ética Deontológica" },
+  { q:"Para Kant, o valor moral de uma ação depende:", opts:["Dos resultados que ela produz","Do prazer que ela gera","Da intenção racional — agir por dever","Da aprovação social"], correct:2, tag:"Ética Deontológica" },
+  { q:"O Utilitarismo de Bentham e Mill defende que a ação correta é:", opts:["A que segue leis divinas","A que desenvolve virtudes no agente","A que produz maior bem-estar para o maior número de pessoas","A que respeita direitos individuais acima de tudo"], correct:2, tag:"Ética Utilitarista" },
+  { q:"Na Ética Cristã Medieval, qual é a virtude considerada a maior de todas?", opts:["Prudência","Fé","Caridade (amor ao próximo)","Esperança"], correct:2, tag:"Ética Cristã" },
+  { q:"Hans Jonas e a Ética Ambiental propõem que nossa responsabilidade moral deve incluir:", opts:["Apenas nossos contemporâneos","Somente os animais domésticos","As gerações futuras e a preservação da vida na Terra","Apenas os membros da nossa nação"], correct:2, tag:"Ética Ambiental" },
+  { q:"O 'Véu da Ignorância' de John Rawls propõe que escolhemos regras justas:", opts:["Com base na tradição histórica","Sem saber qual seria nossa posição na sociedade","Segundo a vontade da maioria","De acordo com a lei natural"], correct:1, tag:"Ética da Justiça" },
+  { q:"Segundo Rawls, desigualdades sociais só são justas quando:", opts:["São resultado de mérito individual comprovado","Beneficiam os membros menos favorecidos da sociedade","São aceitas pela maioria democrática","Refletem diferenças naturais de capacidade"], correct:1, tag:"Ética da Justiça" },
+  { q:"A Ética da Virtude foca principalmente em:", opts:["As consequências das ações","O cumprimento de deveres e regras universais","O caráter e o tipo de pessoa que nos tornamos","O cálculo do bem-estar coletivo"], correct:2, tag:"Ética da Virtude" },
+  { q:"Qual filósofo é associado ao Imperativo Categórico?", opts:["Aristóteles","Jeremy Bentham","John Rawls","Immanuel Kant"], correct:3, tag:"Ética Deontológica" },
+  { q:"O 'Princípio Responsabilidade' de Hans Jonas se aplica especialmente a:", opts:["Crise financeira global","Uso de tecnologias e impactos ambientais que afetam o futuro","Conflitos religiosos internacionais","Desigualdade salarial nas empresas"], correct:1, tag:"Ética Ambiental" },
+  { q:"Na Ética Cristã, Santo Tomás de Aquino defende que a moral deve se fundamentar em:", opts:["O contrato social entre cidadãos","A razão natural alinhada à lei divina (lei natural)","O prazer como bem supremo","A autonomia individual acima de tudo"], correct:1, tag:"Ética Cristã" },
+  { q:"Qual corrente ética justificaria uma política que prejudica poucos para beneficiar grande parte da população?", opts:["Ética Deontológica de Kant","Ética da Virtude de Aristóteles","Ética Utilitarista de Mill e Bentham","Ética Ambiental de Hans Jonas"], correct:2, tag:"Ética Utilitarista" }
+];
+
+// ============================================================
+// AVATAR
+// ============================================================
+const avatarCfg = { gender:'male', skin:'#FDDBB4', hair:'short', hairColor:'#2C1810', glasses:'no', shirt:'#4a9e5c' };
+
+function setOpt(btn, group) {
+  document.querySelectorAll(`[data-group="${group}"]`).forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  avatarCfg[group] = btn.dataset.val;
+  renderAvatar('avatar-svg');
+}
+function setColor(dot, group) {
+  document.querySelectorAll(`[data-group="${group}"]`).forEach(b=>b.classList.remove('selected'));
+  dot.classList.add('selected');
+  avatarCfg[group] = dot.dataset.val;
+  renderAvatar('avatar-svg');
+}
+
+function renderAvatar(svgId) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  const c = avatarCfg;
+  const isFemale = c.gender==='female';
+  const isLong = c.hair==='long';
+  const hairPath = !isLong
+    ? `<ellipse cx="80" cy="62" rx="38" ry="30" fill="${c.hairColor}"/><rect x="42" y="62" width="76" height="15" fill="${c.hairColor}"/>`
+    : `<ellipse cx="80" cy="62" rx="40" ry="30" fill="${c.hairColor}"/><rect x="42" y="62" width="14" height="55" rx="7" fill="${c.hairColor}"/><rect x="104" y="62" width="14" height="55" rx="7" fill="${c.hairColor}"/>`;
+  const glassesEl = c.glasses==='yes'
+    ? `<rect x="54" y="89" width="20" height="13" rx="5" fill="none" stroke="rgba(0,0,0,0.5)" stroke-width="2.5"/>
+       <rect x="86" y="89" width="20" height="13" rx="5" fill="none" stroke="rgba(0,0,0,0.5)" stroke-width="2.5"/>
+       <line x1="74" y1="95" x2="86" y2="95" stroke="rgba(0,0,0,0.5)" stroke-width="2"/>
+       <line x1="50" y1="95" x2="54" y2="95" stroke="rgba(0,0,0,0.4)" stroke-width="2"/>
+       <line x1="106" y1="95" x2="110" y2="95" stroke="rgba(0,0,0,0.4)" stroke-width="2"/>` : '';
+  const sw = isFemale?46:52, hw = isFemale?50:46;
+  svg.innerHTML = `
+    <ellipse cx="80" cy="195" rx="40" ry="6" fill="rgba(0,0,0,.15)"/>
+    <rect x="70" y="108" width="20" height="20" rx="6" fill="${c.skin}"/>
+    <path d="M${80-sw} 128 Q${80-sw-8} 150 ${80-hw} 185 Q80 190 ${80+hw} 185 Q${80+sw+8} 150 ${80+sw} 128 Q80 135 ${80-sw} 128Z" fill="${c.shirt}"/>
+    <line x1="80" y1="128" x2="80" y2="185" stroke="rgba(0,0,0,.1)" stroke-width="1.5"/>
+    ${isLong?`<ellipse cx="80" cy="70" rx="42" ry="36" fill="${c.hairColor}"/>`:''}
+    <ellipse cx="80" cy="82" rx="34" ry="36" fill="${c.skin}"/>
+    <ellipse cx="66" cy="88" rx="5" ry="6" fill="white"/>
+    <ellipse cx="94" cy="88" rx="5" ry="6" fill="white"/>
+    <circle cx="67" cy="89" r="3" fill="#2C1810"/>
+    <circle cx="95" cy="89" r="3" fill="#2C1810"/>
+    <circle cx="68" cy="87.5" r="1" fill="white"/>
+    <circle cx="96" cy="87.5" r="1" fill="white"/>
+    <path d="M60 80 Q66 77 72 80" stroke="${c.hairColor}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M88 80 Q94 77 100 80" stroke="${c.hairColor}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="80" cy="98" rx="4" ry="5" fill="rgba(0,0,0,.07)"/>
+    <path d="M70 108 Q80 115 90 108" stroke="rgba(0,0,0,.3)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    ${isFemale?`<path d="M73 108 Q80 112 87 108" fill="rgba(200,80,100,.4)"/>`:''}
+    <ellipse cx="46" cy="87" rx="6" ry="8" fill="${c.skin}"/>
+    <ellipse cx="114" cy="87" rx="6" ry="8" fill="${c.skin}"/>
+    <ellipse cx="46" cy="87" rx="3.5" ry="5" fill="${lighten(c.skin)}"/>
+    <ellipse cx="114" cy="87" rx="3.5" ry="5" fill="${lighten(c.skin)}"/>
+    ${hairPath}
+    ${glassesEl}
+    <path d="M${80-sw} 128 Q72 128 68 128 L80 145 L92 128 Q88 128 ${80+sw} 128" fill="${darken(c.shirt)}"/>
+  `;
+}
+function lighten(hex){try{let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgb(${Math.min(255,r+40)},${Math.min(255,g+30)},${Math.min(255,b+25)})`;}catch(e){return hex;}}
+function darken(hex){try{let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgb(${Math.max(0,r-35)},${Math.max(0,g-35)},${Math.max(0,b-35)})`;}catch(e){return hex;}}
+function syncAvatarTo(targetId){const src=document.getElementById('avatar-svg');const tgt=document.getElementById(targetId);if(src&&tgt)tgt.innerHTML=src.innerHTML;}
+
+// ============================================================
+// FIREBASE WRAPPER (waits for module to load)
+// ============================================================
+async function waitFirebase(ms=5000){
+  const start=Date.now();
+  while(!window._firebaseReady&&Date.now()-start<ms)await new Promise(r=>setTimeout(r,100));
+  return !!window._firebaseReady;
+}
+async function saveScore(entry){
+  const ok=await waitFirebase();
+  if(!ok){console.warn('Firebase not ready');return;}
+  await window._fbSaveScore(entry);
+}
+async function getScores(){
+  const ok=await waitFirebase();
+  if(!ok)return[];
+  return await window._fbGetScores();
+}
+
+// Firebase status indicator
+waitFirebase(8000).then(ok=>{
+  const el=document.getElementById('fb-status');
+  if(ok){el.textContent='🟢 Online';el.className='firebase-status ok';}
+  else{el.textContent='🔴 Offline';el.className='firebase-status err';}
+});
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let playerName='', currentQ=0, score=0, correct=0, wrong=0, speedBonus=0;
+let timerInterval=null, timeLeft=30, answered=false;
+let shuffledQ=[];
+
+function goToAvatar(){
+  const name=document.getElementById('playerName').value.trim();
+  if(!name){document.getElementById('playerName').style.borderColor='var(--red)';document.getElementById('playerName').focus();return;}
+  playerName=name;
+  showScreen('screen-avatar');
+  renderAvatar('avatar-svg');
+}
+
+function startQuiz(){
+  showScreen('screen-quiz');
+  document.getElementById('quiz-player-name').textContent=playerName;
+  syncAvatarTo('quiz-avatar-mini');
+  shuffledQ=[...questions].sort(()=>Math.random()-.5);
+  currentQ=0;score=0;correct=0;wrong=0;speedBonus=0;
+  document.getElementById('current-score').textContent='0';
+  loadQuestion();
+  if(!musicPlaying)toggleMusic();
+}
+
+function loadQuestion(){
+  if(currentQ>=shuffledQ.length){endQuiz();return;}
+  answered=false;
+  const q=shuffledQ[currentQ];
+  const pct=(currentQ/shuffledQ.length)*100;
+  document.getElementById('progress-fill').style.width=pct+'%';
+  document.getElementById('q-num').textContent=`PERGUNTA ${currentQ+1} DE ${shuffledQ.length}`;
+  document.getElementById('q-tag').textContent=q.tag;
+  document.getElementById('q-text').textContent=q.q;
+  const grid=document.getElementById('options-grid');
+  const letters=['A','B','C','D'];
+  grid.innerHTML='';
+  q.opts.forEach((opt,i)=>{
+    const div=document.createElement('div');
+    div.className='option-card';
+    div.innerHTML=`<div class="option-letter">${letters[i]}</div><span>${opt}</span>`;
+    div.onclick=()=>selectAnswer(i,q.correct,div);
+    grid.appendChild(div);
+  });
+  const fb=document.getElementById('feedback-msg');
+  fb.className='feedback-msg';fb.textContent='';
+  startTimer();
+}
+
+function startTimer(){
+  clearInterval(timerInterval);timeLeft=30;updateTimerUI();
+  timerInterval=setInterval(()=>{
+    timeLeft--;updateTimerUI();
+    if(timeLeft<=0){clearInterval(timerInterval);if(!answered)timeOut();}
+  },1000);
+}
+
+function updateTimerUI(){
+  const num=document.getElementById('timer-num');
+  const circle=document.getElementById('timer-circle');
+  num.textContent=timeLeft;
+  const circumference=2*Math.PI*27;
+  circle.style.strokeDashoffset=circumference*(1-timeLeft/30);
+  if(timeLeft<=10){circle.style.stroke='#f87171';num.className='timer-num danger pulse';}
+  else if(timeLeft<=20){circle.style.stroke='#fb923c';num.className='timer-num';}
+  else{circle.style.stroke='#f7c948';num.className='timer-num';}
+}
+
+function selectAnswer(idx,correctIdx,el){
+  if(answered)return;
+  answered=true;clearInterval(timerInterval);
+  playSound(idx===correctIdx?'correct':'wrong');
+  const cards=document.querySelectorAll('.option-card');
+  cards.forEach(c=>c.classList.add('disabled'));
+  cards[correctIdx].classList.add('correct');
+  const fb=document.getElementById('feedback-msg');
+  if(idx===correctIdx){
+    el.classList.add('correct');
+    const bonus=Math.round(timeLeft*1.67);
+    score+=100+bonus;correct++;speedBonus+=bonus;
+    document.getElementById('current-score').textContent=score;
+    fb.className='feedback-msg correct-fb';
+    fb.textContent=`✅ Correto! +100 pts ${bonus>0?'+ '+bonus+' bônus velocidade':''}`;
+  }else{
+    el.classList.add('wrong');wrong++;
+    fb.className='feedback-msg wrong-fb';
+    fb.textContent=`❌ Incorreto! Resposta correta: "${shuffledQ[currentQ].opts[correctIdx]}"`;
+  }
+  setTimeout(()=>{currentQ++;loadQuestion();},2000);
+}
+
+function timeOut(){
+  answered=true;wrong++;
+  document.querySelectorAll('.option-card').forEach(c=>c.classList.add('disabled'));
+  document.querySelectorAll('.option-card')[shuffledQ[currentQ].correct].classList.add('correct');
+  const fb=document.getElementById('feedback-msg');
+  fb.className='feedback-msg wrong-fb';
+  fb.textContent=`⏰ Tempo esgotado! Resposta: "${shuffledQ[currentQ].opts[shuffledQ[currentQ].correct]}"`;
+  setTimeout(()=>{currentQ++;loadQuestion();},2200);
+}
+
+async function endQuiz(){
+  clearInterval(timerInterval);playSound('finish');
+  showScreen('screen-result');
+  syncAvatarTo('result-avatar');
+  document.getElementById('result-name').textContent=`🎓 ${playerName}`;
+  document.getElementById('result-score').textContent=score;
+  document.getElementById('r-correct').textContent=correct;
+  document.getElementById('r-wrong').textContent=wrong;
+  document.getElementById('r-speed').textContent='+'+speedBonus;
+  let medal='🎉';
+  if(correct>=13)medal='🥇';
+  else if(correct>=10)medal='🥈';
+  else if(correct>=7)medal='🥉';
+  document.getElementById('result-medal').textContent=medal;
+  if(correct>=10)confetti();
+  const entry={name:playerName,score,correct,wrong,speedBonus,avatarCfg:{...avatarCfg},date:new Date().toLocaleString('pt-BR')};
+  await saveScore(entry);
+  const all=await getScores();
+  all.sort((a,b)=>b.score-a.score);
+  const pos=all.findIndex(e=>e.name===playerName&&e.score===score)+1;
+  document.getElementById('result-rank-preview').innerHTML=`Sua posição no ranking: <strong style="color:var(--accent);font-size:20px;">#${pos}</strong> de ${all.length} participante${all.length!==1?'s':''}`;
+}
+
+async function loadRanking(){
+  const list=document.getElementById('ranking-list');
+  list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);" class="pulse">Carregando...</div>';
+  const all=await getScores();
+  all.sort((a,b)=>b.score-a.score);
+  if(all.length===0){list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);">Nenhum participante ainda. Seja o primeiro! 🚀</div>';return;}
+  list.innerHTML='';
+  all.slice(0,20).forEach((e,i)=>{
+    const posClass=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const posLabel=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+    const isMe=e.name===playerName;
+    const row=document.createElement('div');
+    row.className='rank-row'+(isMe?' my-row':'');
+    // mini avatar
+    const miniSvg=document.createElement('svg');
+    miniSvg.setAttribute('viewBox','0 0 160 200');
+    miniSvg.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    miniSvg.className='rank-avatar-mini';
+    if(e.avatarCfg){
+      const saved={...avatarCfg};
+      Object.assign(avatarCfg,e.avatarCfg);
+      renderAvatar('avatar-svg');
+      miniSvg.innerHTML=document.getElementById('avatar-svg').innerHTML;
+      Object.assign(avatarCfg,saved);
+      renderAvatar('avatar-svg');
+    }
+    row.innerHTML=`
+      <div class="rank-pos ${posClass}">${posLabel}</div>
+      <div class="rank-name">${e.name}${isMe?' <span style="color:var(--accent);font-size:12px;">(você)</span>':''}</div>
+      <div><div class="rank-score">${e.score} pts</div><div class="rank-details">✅ ${e.correct}/15 · ⚡ +${e.speedBonus||0}</div></div>
+      <div style="font-size:12px;color:var(--text-dim);text-align:right;">${e.date||''}</div>
+    `;
+    row.insertBefore(miniSvg,row.children[1]);
+    list.appendChild(row);
+  });
+}
+async function showRanking(){showScreen('screen-ranking');await loadRanking();}
+
+// ============================================================
+// TEACHER
+// ============================================================
+function showTeacherLogin(){document.getElementById('modal-overlay').style.display='flex';document.getElementById('teacher-pass').value='';document.getElementById('pass-error').style.display='none';setTimeout(()=>document.getElementById('teacher-pass').focus(),100);}
+function closeModal(){document.getElementById('modal-overlay').style.display='none';}
+function checkTeacherPass(){if(document.getElementById('teacher-pass').value==='professor123'){closeModal();loadTeacherPanel();}else{document.getElementById('pass-error').style.display='block';}}
+
+async function loadTeacherPanel(){
+  showScreen('screen-teacher');
+  const all=await getScores();
+  all.sort((a,b)=>b.score-a.score);
+  const avg=all.length?Math.round(all.reduce((s,e)=>s+e.score,0)/all.length):0;
+  const avgC=all.length?(all.reduce((s,e)=>s+e.correct,0)/all.length).toFixed(1):0;
+  document.getElementById('teacher-stats').innerHTML=[
+    ['👥',all.length,'Participantes'],
+    ['⭐',all[0]?.score||0,'Maior pontuação'],
+    ['📊',avg,'Média de pontos'],
+    ['✅',avgC+'/15','Média de acertos']
+  ].map(([icon,val,lbl])=>`<div class="stat-card"><div style="font-size:24px;margin-bottom:4px;">${icon}</div><div class="stat-val">${val}</div><div class="stat-lbl">${lbl}</div></div>`).join('');
+  document.getElementById('teacher-tbody').innerHTML=all.map((e,i)=>`<tr><td style="font-weight:800;color:${i<3?'var(--accent)':'var(--text)'}">#${i+1}</td><td style="font-weight:700">${e.name}</td><td style="color:var(--accent);font-weight:800">${e.score}</td><td>${e.correct}/15</td><td style="color:var(--red)">${e.wrong}</td><td style="color:var(--accent3)">+${e.speedBonus||0}</td><td style="color:var(--text-dim);font-size:12px">${e.date||'-'}</td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-dim)">Nenhum dado ainda.</td></tr>';
+}
+
+async function clearAllScores(){
+  if(!confirm('Tem certeza? Isso apagará TODOS os resultados dos alunos!'))return;
+  await window._fbClearScores();
+  loadTeacherPanel();
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function resetGame(){showScreen('screen-welcome');document.getElementById('playerName').value='';document.getElementById('playerName').style.borderColor='';}
+
+// STARS
+function createStars(){
+  const c=document.getElementById('stars');
+  for(let i=0;i<120;i++){
+    const s=document.createElement('div');s.className='star';
+    const sz=Math.random()*3+1;
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;--d:${2+Math.random()*4}s;animation-delay:${Math.random()*5}s;opacity:${Math.random()*.7+.1};`;
+    c.appendChild(s);
+  }
+}
+
+// MUSIC
+let audioCtx=null,musicPlaying=false,musicSeq=null;
+function initAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+function toggleMusic(){
+  initAudio();
+  if(musicPlaying){stopMusic();document.getElementById('musicBtn').textContent='🔇';}
+  else{startMusic();document.getElementById('musicBtn').textContent='🎵';}
+}
+function startMusic(){
+  musicPlaying=true;
+  const notes=[523,587,659,698,784,880,784,698,659,587,523,440,523,659,784,880,1047,880,784,659,523,0,659,784,880,784,659,587,523,659,523,440];
+  const dur=0.22;let i=0;
+  function playNote(){
+    if(!musicPlaying)return;
+    const now=audioCtx.currentTime;
+    if(notes[i]>0){
+      const osc=audioCtx.createOscillator();const gain=audioCtx.createGain();
+      osc.connect(gain);gain.connect(audioCtx.destination);
+      osc.type='triangle';osc.frequency.setValueAtTime(notes[i],now);
+      gain.gain.setValueAtTime(0.08,now);gain.gain.exponentialRampToValueAtTime(0.001,now+dur*.85);
+      osc.start(now);osc.stop(now+dur);
+    }
+    i=(i+1)%notes.length;musicSeq=setTimeout(playNote,dur*1000);
+  }
+  playNote();
+}
+function stopMusic(){musicPlaying=false;clearTimeout(musicSeq);}
+function playSound(type){
+  initAudio();const now=audioCtx.currentTime;
+  const osc=audioCtx.createOscillator();const gain=audioCtx.createGain();
+  osc.connect(gain);gain.connect(audioCtx.destination);
+  if(type==='correct'){
+    osc.type='sine';
+    osc.frequency.setValueAtTime(523,now);osc.frequency.setValueAtTime(659,now+.1);osc.frequency.setValueAtTime(784,now+.2);
+    gain.gain.setValueAtTime(.2,now);gain.gain.exponentialRampToValueAtTime(.001,now+.5);
+    osc.start(now);osc.stop(now+.5);
+  }else if(type==='wrong'){
+    osc.type='sawtooth';
+    osc.frequency.setValueAtTime(220,now);osc.frequency.setValueAtTime(180,now+.15);
+    gain.gain.setValueAtTime(.12,now);gain.gain.exponentialRampToValueAtTime(.001,now+.4);
+    osc.start(now);osc.stop(now+.4);
+  }else if(type==='finish'){
+    [523,659,784,1047].forEach((f,i)=>{
+      const o2=audioCtx.createOscillator();const g2=audioCtx.createGain();
+      o2.connect(g2);g2.connect(audioCtx.destination);o2.type='sine';o2.frequency.value=f;
+      g2.gain.setValueAtTime(.15,now+i*.12);g2.gain.exponentialRampToValueAtTime(.001,now+i*.12+.4);
+      o2.start(now+i*.12);o2.stop(now+i*.12+.4);
+    });
+  }
+}
+
+// CONFETTI
+function confetti(){
+  const cols=['#f7c948','#ff6b9d','#4ecdc4','#4ade80','#f87171','#a78bfa'];
+  for(let i=0;i<80;i++){
+    const p=document.createElement('div');p.className='confetti-piece';
+    p.style.cssText=`left:${Math.random()*100}vw;background:${cols[Math.floor(Math.random()*cols.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>.5?'50%':'2px'};animation-duration:${2+Math.random()*3}s;animation-delay:${Math.random()*1.5}s;`;
+    document.body.appendChild(p);p.addEventListener('animationend',()=>p.remove());
+  }
+}
+
+// INIT
+createStars();renderAvatar('avatar-svg');
+</script>
+</body>
+</html>
